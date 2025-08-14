@@ -1,0 +1,28 @@
+﻿# Node
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Virtual envs
+.venv/
+venv/
+backend/.venv/
+**/.venv/
+
+# Env files (never commit secrets)
+.env
+*.env
+backend/.env
+frontend/.env
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Copilot</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            background: white;
+            border-radius: 20px;
+            margin: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .dashboard-section {
+            flex: 1;
+            background: #f8fafc;
+            position: relative;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .dashboard-header {
+            background: white;
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .dashboard-header h1 {
+            color: #1e293b;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .dashboard-content {
+            padding: 20px;
+            height: calc(100vh - 140px);
+        }
+
+        .powerbi-placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #f1f5f9, #e2e8f0);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 18px;
+            border: 2px dashed #cbd5e1;
+        }
+
+        .powerbi-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 12px;
+        }
+
+        .chatbot-section {
+            width: 400px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border-radius: 0 20px 20px 0;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 12px;
+            height: 12px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 18px 18px 4px 18px;
+            margin-left: 40px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .bot-message {
+            background: white;
+            color: #374151;
+            padding: 16px;
+            border-radius: 18px 18px 18px 4px;
+            margin-right: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #10b981;
+        }
+
+        .intent-badge {
+            display: inline-block;
+            background: #f3f4f6;
+            color: #6b7280;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .intent-visual_update { background: #dbeafe; color: #1d4ed8; }
+        .intent-sql_query { background: #ecfdf5; color: #059669; }
+        .intent-rag_lookup { background: #fef3c7; color: #d97706; }
+        .intent-mixed { background: #e0e7ff; color: #7c3aed; }
+        .intent-needs_clarification { background: #fecaca; color: #dc2626; }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 12px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input input:focus {
+            border-color: #3b82f6;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+            min-width: 80px;
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        .loading-dots {
+            display: inline-flex;
+            gap: 2px;
+        }
+
+        .loading-dots span {
+            width: 6px;
+            height: 6px;
+            background: #6b7280;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite both;
+        }
+
+        .loading-dots span:nth-child(2) { animation-delay: 0.16s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.32s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .suggestions {
+            margin-top: 12px;
+        }
+
+        .suggestion-button {
+            display: inline-block;
+            background: #f3f4f6;
+            color: #374151;
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            margin: 4px 4px 4px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .suggestion-button:hover {
+            background: #e5e7eb;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard-section">
+            <div class="dashboard-header">
+                <h1>Finance Dashboard</h1>
+            </div>
+            <div class="dashboard-content">
+                <div class="powerbi-placeholder" id="dashboardContainer">
+                    <div>📊</div>
+                    <div>Power BI Dashboard</div>
+                    <div style="font-size: 14px; margin-top: 10px;">Embed your Power BI report iframe here</div>
+                    <button onclick="loadSampleDashboard()" style="margin-top: 15px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer;">Load Sample Dashboard</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chatbot-section">
+            <div class="chat-header">
+                <h2>Finance Copilot</h2>
+                <div class="status-indicator"></div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message">
+                    <div class="bot-message">
+                        <div class="intent-badge">System</div>
+                        Welcome! I'm your Finance Copilot. I can help you analyze data, filter dashboards, and answer questions about your financial reports. Try asking me something like "Show me 2024 sales data" or "Top 5 customers by revenue".
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input">
+                    <input 
+                        type="text" 
+                        id="messageInput" 
+                        placeholder="Ask me about your financial data..."
+                        onkeypress="handleKeyPress(event)"
+                    >
+                    <button class="send-button" onclick="sendMessage()" id="sendButton">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock backend service for intent analysis and response generation
+        class FinanceCopilotService {
+            constructor() {
+                this.sessionContext = [];
+                this.intentPatterns = {
+                    visual_update: [
+                        /show me.*(?:sales|revenue|profit|data).*(?:20\d{2}|quarter|q[1-4]|year|month)/i,
+                        /filter.*(?:by|to|for).*(?:country|region|customer|product|year)/i,
+                        /display.*(?:only|just).*(?:20\d{2}|france|germany|uk|usa)/i,
+                    ],
+                    sql_query: [
+                        /top\s*\d+.*(?:customers?|products?|regions?|sales|revenue)/i,
+                        /compare.*(?:vs|versus|against|with)/i,
+                        /what.*(?:is|are|was|were).*(?:total|average|sum|count)/i,
+                        /calculate.*(?:total|sum|average|percentage)/i,
+                    ],
+                    rag_lookup: [
+                        /what.*(?:did|does|said|says).*(?:report|board|meeting|document|notes?)/i,
+                        /tell me about.*(?:q[1-4]|quarter|board|meeting|summary)/i,
+                        /find.*(?:in|from).*(?:documents?|reports?|notes?|minutes?)/i,
+                    ],
+                    mixed: [
+                        /show.*and.*(?:compare|calculate|tell|find)/i,
+                        /filter.*(?:and|then).*(?:compare|show|calculate)/i,
+                    ],
+                };
+                
+                this.mockData = {
+                    customers: ['ACME Corp', 'TechFlow Inc', 'Global Systems', 'DataCorp Ltd', 'InnovateX'],
+                    regions: ['North America', 'Europe', 'Asia Pacific', 'Latin America', 'Middle East'],
+                    revenues: [1250000, 980000, 750000, 650000, 420000],
+                };
+            }
+
+            async analyzeIntent(message) {
+                // Simple intent classification
+                message = message.toLowerCase();
+                
+                for (const [intent, patterns] of Object.entries(this.intentPatterns)) {
+                    for (const pattern of patterns) {
+                        if (pattern.test(message)) {
+                            return intent;
+                        }
+                    }
+                }
+                
+                // Check for clarification needs
+                if (message.length < 10 || !message.includes(' ')) {
+                    return 'needs_clarification';
+                }
+                
+                return 'sql_query'; // Default fallback
+            }
+
+            async generateResponse(message, intent) {
+                await this.delay(1000 + Math.random() * 1500); // Simulate API delay
+                
+                const responses = {
+                    visual_update: this.generateVisualResponse(message),
+                    sql_query: this.generateSQLResponse(message),
+                    rag_lookup: this.generateRAGResponse(message),
+                    mixed: this.generateMixedResponse(message),
+                    needs_clarification: this.generateClarificationResponse(message),
+                };
+                
+                return responses[intent] || responses.needs_clarification;
+            }
+
+            generateVisualResponse(message) {
+                const responses = [
+                    "I've updated the dashboard to show the filtered view. The visualizations now display data based on your criteria.",
+                    "Perfect! I've applied the filters to your Power BI dashboard. You should see the updated charts and graphs reflecting your request.",
+                    "Dashboard updated successfully! The current view now shows the specific data you requested. You can see the changes in the visualizations on the left.",
+                    "Done! I've modified the dashboard filters. The charts are now displaying the filtered dataset according to your specifications."
+                ];
+                
+                return {
+                    text: responses[Math.floor(Math.random() * responses.length)],
+                    suggestions: ['Show different time period', 'Add more filters', 'Reset to original view']
+                };
+            }
+
+            generateSQLResponse(message) {
+                if (message.includes('top') && message.includes('customer')) {
+                    const topCustomers = this.mockData.customers
+                        .map((name, idx) => ({ name, revenue: this.mockData.revenues[idx] }))
+                        .sort((a, b) => b.revenue - a.revenue)
+                        .slice(0, 5);
+                    
+                    let response = "Here are the top 5 customers by revenue:\n\n";
+                    topCustomers.forEach((customer, idx) => {
+                        response += `${idx + 1}. ${customer.name}: $${(customer.revenue / 1000000).toFixed(1)}M\n`;
+                    });
+                    
+                    return {
+                        text: response,
+                        suggestions: ['Show top 10 customers', 'Compare by regions', 'Export to Excel']
+                    };
+                }
+                
+                if (message.includes('compare')) {
+                    return {
+                        text: "Based on the analysis, Q2 2024 showed a 15% increase compared to Q1 2024. Europe outperformed North America by 8% in revenue growth, primarily driven by strong performance in France (+22%) and Germany (+18%).",
+                        suggestions: ['Show detailed breakdown', 'Compare with last year', 'Analyze by product']
+                    };
+                }
+                
+                const responses = [
+                    "Based on your query, the total revenue for the selected period is $12.5M, with an average deal size of $85K. The growth rate compared to last period is +12%.",
+                    "Analysis complete! The data shows 1,247 transactions totaling $8.9M in revenue. The top performing segment contributed 34% of total sales.",
+                    "Here are the key metrics: Revenue: $15.2M (+8% YoY), Profit Margin: 23.5% (+1.2pp), Customer Count: 342 (+15% QoQ)."
+                ];
+                
+                return {
+                    text: responses[Math.floor(Math.random() * responses.length)],
+                    suggestions: ['Get detailed breakdown', 'Compare periods', 'Export results']
+                };
+            }
+
+            generateRAGResponse(message) {
+                const responses = [
+                    "According to the Q2 Board Summary document, the board noted margin pressure in the EU market, primarily driven by increased freight costs and supply chain disruptions. The document mentions a 3.2% margin decline compared to Q1.",
+                    "From the latest financial report, I found that the CFO highlighted three key concerns: currency hedging strategies, working capital optimization, and the need for cost reduction initiatives in our European operations.",
+                    "The meeting notes from last month indicate that the finance team is implementing a new budgeting process, with emphasis on quarterly reviews and real-time variance analysis. The expected completion date is Q4 2024."
+                ];
+                
+                return {
+                    text: responses[Math.floor(Math.random() * responses.length)],
+                    suggestions: ['Find related documents', 'Get full excerpt', 'Search similar topics']
+                };
+            }
+
+            generateMixedResponse(message) {
+                return {
+                    text: "I've applied the filters to show Germany data and here's the Q1 vs Q2 comparison: Germany Q1: €2.1M, Q2: €2.4M (+14% growth). The dashboard now displays this filtered view, and I can see that the automotive sector contributed 45% of the growth.",
+                    suggestions: ['Compare with other regions', 'Show monthly breakdown', 'Analyze by product category']
+                };
+            }
+
+            generateClarificationResponse(message) {
+                const clarifications = [
+                    {
+                        text: "I'd be happy to help! Could you be more specific about what you're looking for?",
+                        suggestions: ['Sales data', 'Customer analysis', 'Regional performance', 'Financial reports']
+                    },
+                    {
+                        text: "I need a bit more information to give you the best answer. What aspect of the data interests you?",
+                        suggestions: ['Revenue trends', 'Top performers', 'Time period comparison', 'Cost analysis']
+                    },
+                    {
+                        text: "Let me help you find what you need. Which of these areas would you like to explore?",
+                        suggestions: ['2024 Performance', 'Customer Insights', 'Regional Analysis', 'Product Metrics']
+                    }
+                ];
+                
+                return clarifications[Math.floor(Math.random() * clarifications.length)];
+            }
+
+            async delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Initialize the service
+        const copilotService = new FinanceCopilotService();
+
+        // UI Functions
+        function addMessage(content, isUser = false, intent = null) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            if (isUser) {
+                messageDiv.innerHTML = `<div class="user-message">${content}</div>`;
+            } else {
+                const intentBadge = intent ? `<div class="intent-badge intent-${intent}">${intent.replace('_', ' ')}</div>` : '';
+                const suggestions = content.suggestions ? 
+                    `<div class="suggestions">
+                        ${content.suggestions.map(s => `<button class="suggestion-button" onclick="sendSuggestion('${s}')">${s}</button>`).join('')}
+                    </div>` : '';
+                
+                messageDiv.innerHTML = `
+                    <div class="bot-message">
+                        ${intentBadge}
+                        ${content.text || content}
+                        ${suggestions}
+                    </div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showLoading() {
+            const messagesContainer = document.getElementById('chatMessages');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message';
+            loadingDiv.id = 'loading-message';
+            loadingDiv.innerHTML = `
+                <div class="bot-message loading">
+                    Analyzing your request<div class="loading-dots"><span></span><span></span><span></span></div>
+                </div>
+            `;
+            messagesContainer.appendChild(loadingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function removeLoading() {
+            const loadingMessage = document.getElementById('loading-message');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, true);
+            
+            // Clear input and disable button
+            input.value = '';
+            sendButton.disabled = true;
+            sendButton.textContent = 'Processing...';
+            
+            // Show loading
+            showLoading();
+            
+            try {
+                // Analyze intent
+                const intent = await copilotService.analyzeIntent(message);
+                
+                // Generate response
+                const response = await copilotService.generateResponse(message, intent);
+                
+                // Remove loading and add bot response
+                removeLoading();
+                addMessage(response, false, intent);
+                
+            } catch (error) {
+                removeLoading();
+                addMessage({
+                    text: "I apologize, but I encountered an error processing your request. Please try again or rephrase your question.",
+                    suggestions: ['Try again', 'Get help', 'Reset conversation']
+                }, false, 'error');
+            } finally {
+                // Re-enable button
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+                input.focus();
+            }
+        }
+
+        function sendSuggestion(suggestion) {
+            document.getElementById('messageInput').value = suggestion;
+            sendMessage();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function loadSampleDashboard() {
+            const container = document.getElementById('dashboardContainer');
+            container.innerHTML = `
+                <iframe 
+                    class="powerbi-iframe"
+                    src="https://app.powerbi.com/reportEmbed?reportId=sample&autoAuth=true&ctid=sample"
+                    frameborder="0" 
+                    allowFullScreen="true">
+                </iframe>
+                <div style="position: absolute; top: 20px; left: 20px; background: rgba(59, 130, 246, 0.9); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px;">
+                    📊 Sample Dashboard Loaded
+                </div>
+            `;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('messageInput').focus();
+        });
+    </script>
+</body>
+</html>
